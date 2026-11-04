@@ -84,7 +84,11 @@ create or replace function public.recalculate_order_total()
 returns trigger language plpgsql set search_path=public,pg_temp as $$
 declare v_order_id uuid;
 begin
- v_order_id:=coalesce(new.order_id,old.order_id);
+ if tg_op = 'DELETE' then
+    v_order_id := old.order_id;
+  else
+    v_order_id := new.order_id;
+  end if;
  update public.orders o set
   total_amount=coalesce((select sum(i.line_total) from public.order_items i where i.order_id=v_order_id),0),
   amount_received=case when o.payment_status='paid' then coalesce((select sum(i.line_total) from public.order_items i where i.order_id=v_order_id),0) else 0 end,
@@ -132,3 +136,38 @@ insert into public.products(name,rate_per_kg,sort_order) values
  ('Sata Sweet (Ghee)',550,1),('Sata Sweet (Oil)',500,2),
  ('Dry Fruit Ghughara (Ghee)',800,3),('Dry Fruit Ghughara (Oil)',750,4)
 on conflict(name) do nothing;
+
+
+-- Private one-time owner bootstrap. kr_private is not an exposed Data API schema.
+create schema if not exists kr_private;
+revoke all on schema kr_private from public, anon, authenticated;
+create table if not exists kr_private.bootstrap_config (
+  id integer primary key check (id = 1),
+  code_hash text not null,
+  consumed_at timestamptz
+);
+revoke all on kr_private.bootstrap_config from public, anon, authenticated;
+insert into kr_private.bootstrap_config(id, code_hash, consumed_at)
+values (1, '55dfd2d7a29006f68e5072981e34aea50e97227e0fd3ee98f9ed086a292c4530', null)
+on conflict (id) do nothing;
+
+create or replace function public.claim_bootstrap_admin(
+  p_code_hash text,
+  p_user_id uuid,
+  p_display_name text
+) returns void
+language plpgsql
+security definer
+set search_path = public, kr_private, pg_temp
+as $$
+begin
+  update kr_private.bootstrap_config
+     set consumed_at = now()
+   where id = 1 and consumed_at is null and code_hash = p_code_hash;
+  if not found then raise exception 'Invalid or already-used setup code'; end if;
+  insert into public.staff_profiles(user_id, display_name, is_active)
+  values (p_user_id, coalesce(nullif(btrim(p_display_name), ''), 'KR Makers Admin'), true);
+end
+$$;
+revoke all on function public.claim_bootstrap_admin(text, uuid, text) from public, anon, authenticated;
+grant execute on function public.claim_bootstrap_admin(text, uuid, text) to service_role;
