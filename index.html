@@ -39,7 +39,15 @@
           throw new Error('Please open this website in an updated version of Chrome, Edge, Firefox, or Safari.');
         }
         const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-        const applicationHtml = await new Response(stream).text();
+        let applicationHtml = await new Response(stream).text();
+
+        // Keep the PDF payment QR card beside the totals instead of 28mm below them.
+        const oldPaymentPosition = 'const qy=Math.min(sumY+28,218);';
+        if (!applicationHtml.includes(oldPaymentPosition)) {
+          throw new Error('The invoice PDF layout could not be updated. Please refresh and contact support.');
+        }
+        applicationHtml = applicationHtml.replace(oldPaymentPosition, 'const qy=Math.min(sumY,218);');
+
         if (!applicationHtml.includes('First-time owner setup') || !applicationHtml.includes('bootstrap-admin')) {
           throw new Error('The application package failed its integrity check.');
         }
