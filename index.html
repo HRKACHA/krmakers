@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KR Makers Invoice Creator</title>
+<style>body{font:15px Arial,sans-serif;color:#12385b;background:#edf3f7;padding:32px}#status{max-width:480px;margin:12vh auto;padding:28px;background:#fff;border:1px solid #dce6ed;border-radius:12px;text-align:center}</style>
+</head>
+<body>
+<div id="status">Loading KR Makers Invoice Creator…</div>
+<script>
+(async function(){
+  try {
+    const files = await Promise.all(["app.payload","assets/kr-makers-logo.b64","assets/kotak-upi-qr.b64"].map(async function(path){
+      const response = await fetch(path);
+      if (!response.ok) throw new Error("Could not load " + path);
+      return (await response.text()).trim();
+    }));
+    const binary = atob(files[0]);
+    const bytes = new Uint8Array(binary.length);
+    for (let i=0; i<binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    if (!("DecompressionStream" in window)) throw new Error("Please use a recent version of Chrome, Edge, Firefox or Safari.");
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    let html = await new Response(stream).text();
+    html = html.replace("__KR_LOGO_B64__", files[1]).replace("__KR_QR_B64__", files[2]);
+    document.open();
+    document.write(html);
+    document.close();
+  } catch (error) {
+    document.getElementById("status").textContent = "The invoice creator could not load. Refresh the page or try a modern browser. " + error.message;
+  }
+})();
+</script>
+</body>
+</html>
