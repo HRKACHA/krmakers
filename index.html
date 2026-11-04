@@ -48,9 +48,9 @@
         }
         applicationHtml = applicationHtml.replace(oldPaymentPosition, 'const qy=Math.min(sumY,218);');
 
-        // Fit the UPI payee name inside the payment card instead of letting it touch the border.
+        // Match the supplied invoice PDF layout: keep normal type size and wrap the payee within the text column.
         const payeeLine = "doc.setFontSize(7.5);doc.text('KACHA REKHABEN RAMESHBHAI',66,qy+27);";
-        const payeeFitLine = "const payeeName='KACHA REKHABEN RAMESHBHAI';doc.setFontSize(Math.min(7.5,7.5*39/doc.getTextWidth(payeeName)));doc.text(payeeName,66,qy+27);";
+        const payeeFitLine = "const payeeName='KACHA REKHABEN RAMESHBHAI';doc.setFontSize(7.5);const payeeLines=doc.splitTextToSize(payeeName,45);doc.text(payeeLines,66,qy+27);";
         if (!applicationHtml.includes(payeeLine)) {
           throw new Error('The payment name layout could not be updated. Please refresh and contact support.');
         }
