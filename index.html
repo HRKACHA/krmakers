@@ -1,35 +1,56 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KR Makers Invoice Creator</title>
-<style>body{font:15px Arial,sans-serif;color:#12385b;background:#edf3f7;padding:32px}#status{max-width:480px;margin:12vh auto;padding:28px;background:#fff;border:1px solid #dce6ed;border-radius:12px;text-align:center}</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#eaf5fc">
+  <title>KR Makers | Order Management</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:linear-gradient(135deg,#eaf5fc,#f8fbfd);font:15px/1.5 Arial,sans-serif;color:#173d61}
+    .load-card{width:min(440px,100%);padding:34px 28px;text-align:center;background:#fff;border:1px solid #dce8f0;border-radius:18px;box-shadow:0 16px 46px #173d6110}
+    .mark{width:66px;height:66px;margin:0 auto 18px;border:1px solid #d8e8f2;border-radius:50%;display:grid;place-items:center;background:#f3f9fd;color:#173d61;font:700 22px Georgia,serif}
+    h1{margin:0 0 7px;font:600 25px Georgia,serif}p{margin:0;color:#718196;font-size:13px}.spinner{width:22px;height:22px;margin:20px auto 0;border:2px solid #d9eaf5;border-top-color:#173d61;border-radius:50%;animation:spin .8s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+    .error{margin-top:15px;color:#a44949;font-size:12px}
+  </style>
 </head>
 <body>
-<div id="status">Loading KR Makers Invoice Creator…</div>
-<script>
-(async function(){
-  try {
-    const files = await Promise.all(["app.payload","assets/kr-makers-logo.b64","assets/kotak-upi-qr.b64"].map(async function(path){
-      const response = await fetch(path);
-      if (!response.ok) throw new Error("Could not load " + path);
-      return (await response.text()).trim();
-    }));
-    const binary = atob(files[0]);
-    const bytes = new Uint8Array(binary.length);
-    for (let i=0; i<binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    if (!("DecompressionStream" in window)) throw new Error("Please use a recent version of Chrome, Edge, Firefox or Safari.");
-    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
-    let html = await new Response(stream).text();
-    html = html.replace("__KR_LOGO_B64__", files[1]).replace("__KR_QR_B64__", files[2]);
-    document.open();
-    document.write(html);
-    document.close();
-  } catch (error) {
-    document.getElementById("status").textContent = "The invoice creator could not load. Refresh the page or try a modern browser. " + error.message;
-  }
-})();
-</script>
+  <main class="load-card">
+    <div class="mark">KR</div>
+    <h1>KR Makers</h1>
+    <p>Loading your order management workspace…</p>
+    <div class="spinner" aria-hidden="true"></div>
+    <div id="error" class="error" role="alert"></div>
+  </main>
+  <script>
+    (async function () {
+      try {
+        const [firstResponse, secondResponse] = await Promise.all([
+          fetch('./app.payload', { cache: 'no-store' }),
+          fetch('./app.payload.part2', { cache: 'no-store' })
+        ]);
+        if (!firstResponse.ok || !secondResponse.ok) {
+          throw new Error('The application bundle is incomplete. Please refresh or contact the site owner.');
+        }
+        const encoded = (await firstResponse.text()).trim() + (await secondResponse.text()).trim();
+        const binary = atob(encoded);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        if (!('DecompressionStream' in window)) {
+          throw new Error('Please open this website in an updated version of Chrome, Edge, Firefox, or Safari.');
+        }
+        const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+        const applicationHtml = await new Response(stream).text();
+        if (!applicationHtml.includes('First-time owner setup') || !applicationHtml.includes('bootstrap-admin')) {
+          throw new Error('The application package failed its integrity check.');
+        }
+        document.open();
+        document.write(applicationHtml);
+        document.close();
+      } catch (error) {
+        document.querySelector('.spinner').style.display = 'none';
+        document.getElementById('error').textContent = error && error.message ? error.message : 'Unable to load the application.';
+      }
+    })();
+  </script>
 </body>
 </html>
