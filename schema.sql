@@ -52,6 +52,7 @@ create index if not exists orders_order_date_idx on public.orders(order_date des
 create index if not exists orders_payment_status_idx on public.orders(payment_status,paid_at desc);
 create index if not exists orders_customer_idx on public.orders(customer_id);
 create index if not exists order_items_order_id_idx on public.order_items(order_id);
+create index if not exists order_items_product_id_idx on public.order_items(product_id);
 
 alter table public.customers enable row level security;
 alter table public.products enable row level security;
